@@ -1,0 +1,6 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: lognhorn-system
+
+resources:
+  - https://raw.githubusercontent.com/longhorn/longhorn/v1.7.2/deploy/longhorn.yaml
