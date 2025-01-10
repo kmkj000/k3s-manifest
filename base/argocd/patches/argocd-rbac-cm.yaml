@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+data:
+  scopes: "[preferred_username]"
+  policy.default: role:default
+  policy.default.csv: |
+    p, role:default, applications, get, */*, deny
+    p, role:default, clusters, get, *, deny
+    p, role:default, repositories, get, *, deny
+  policy.csv: |
+    g, kmkj000, role:admin
