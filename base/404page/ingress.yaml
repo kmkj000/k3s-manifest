@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: custom-404-ingress
+  annotations:
+    ingress.kubernetes.io/force-ssl-redirect: "false"
+
+spec:
+  ingressClassName: contour
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: custom-404-service
+                port:
+                  number: 80

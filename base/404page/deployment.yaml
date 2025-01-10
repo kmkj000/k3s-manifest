@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: custom-404-deployment
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: custom-404
+  template:
+    metadata:
+      labels:
+        app: custom-404
+    spec:
+      containers:
+      - name: custom-404
+        image: nginx:alpine
+        volumeMounts:
+          - name: custom-404-html
+            mountPath: /usr/share/nginx/html
+        ports:
+          - containerPort: 80
+      volumes:
+        - name: custom-404-html
+          configMap:
+            name: custom-404-html
+            items:
+              - key: index.html
+                path: index.html
