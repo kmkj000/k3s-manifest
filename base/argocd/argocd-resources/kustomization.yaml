@@ -4,3 +4,4 @@ namespace: argocd
 
 resources:
   - repo-creds.yaml
+  - app-argocd.yaml
