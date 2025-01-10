@@ -1,0 +1,123 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: velero
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: velero
+rules:
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterrolebindings"]
+    verbs: ["list", "get"]
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["list"]
+  - apiGroups: [""]
+    resources:
+      ["nodes", "namespaces", "persistentvolumes", "secrets", "configmaps"]
+    verbs: ["get", "list", "create", "watch"]
+  - apiGroups: ["apps", "extensions"]
+    resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods", "services", "services/status", "endpoints", "events"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses", "volumeattachments"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["snapshot.storage.k8s.io"]
+    resources:
+      ["volumesnapshots", "volumesnapshotcontents", "volumesnapshotclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["velero.io"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch", "create", "delete", "update", "patch"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: velero
+subjects:
+  - kind: ServiceAccount
+    name: velero
+    namespace: velero
+roleRef:
+  kind: ClusterRole
+  name: velero
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: velero
+  labels:
+    app.kubernetes.io/name: velero
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: velero
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: velero
+    spec:
+      serviceAccountName: velero
+      initContainers:
+        # GCP用のPluginコンテナ
+        - name: velero-plugin-for-gcp
+          image: velero/velero-plugin-for-gcp:v1.11.0
+          volumeMounts:
+            - name: plugins
+              mountPath: /target
+      containers:
+        # Velero本体コンテナ
+        - name: velero
+          image: velero/velero:v1.11.0
+          command:
+            - /velero
+          args:
+            - server
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: plugins
+              mountPath: /plugins
+            - name: cloud-credentials
+              mountPath: /credentials
+              readOnly: true
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /credentials/credentials-velero
+
+      volumes:
+        - name: plugins
+          emptyDir: {}
+        - name: cloud-credentials
+          secret:
+            secretName: cloud-credentials
+---
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: sealed-secrets
+  namespace: velero
+spec:
+  provider: gcp
+  objectStorage:
+    bucket: "puti-sealed-secrets-backup"
+    # バケット内のディレクトリプレフィックスを設定したい場合 (任意)
+    prefix: "velero"
+  config:
+    # GCPのService Accountを指定
+    serviceAccount: "velero@sacred-courier-203310.iam.gserviceaccount.com"
+  # バックアップの読み書きを許可
+  accessMode: ReadWrite
